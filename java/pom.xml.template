@@ -2,16 +2,15 @@
 <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.ververica</groupId>
+    <groupId>io.github.platinumhamburg</groupId>
     <artifactId>frocksdbjni</artifactId>
     <version>${FROCKSDB_JAVA_VERSION}</version>  <!-- this will be replaced by the Makefile's rocksdbjavageneratepom target -->
 
-    <name>RocksDB JNI</name>
-    <description>RocksDB fat jar with modifications specific for Apache Flink that contains .so files for linux32 and linux64 (glibc and musl-libc), jnilib files
-        for Mac OSX, and a .dll for Windows x64.
+    <name>FRocksDB JNI</name>
+    <description>RocksDB JNI library with Apache Fluss optimizations. Multi-platform fat JAR containing native libraries for Linux (glibc and musl-libc), macOS, and Windows x64.
     </description>
-    <url>https://rocksdb.org</url>
-    <inceptionYear>2012</inceptionYear>
+    <url>https://github.com/platinumhamburg/frocksdb</url>
+    <inceptionYear>2024</inceptionYear>
 
     <licenses>
         <license>
@@ -22,26 +21,42 @@
     </licenses>
 
     <scm>
-        <connection>scm:git:https://github.com/ververica/frocksdb.git</connection>
-        <developerConnection>scm:git:https://github.com/ververica/frocksdb.git</developerConnection>
-        <url>scm:git:https://github.com/ververica/frocksdb.git</url>
+        <connection>scm:git:https://github.com/platinumhamburg/frocksdb.git</connection>
+        <developerConnection>scm:git:git@github.com:platinumhamburg/frocksdb.git</developerConnection>
+        <url>https://github.com/platinumhamburg/frocksdb</url>
+        <tag>HEAD</tag>
     </scm>
 
     <organization>
-        <name>Facebook</name>
-        <url>https://www.facebook.com</url>
+        <name>platinumhamburg</name>
+        <url>https://github.com/platinumhamburg</url>
     </organization>
 
     <developers>
         <developer>
+            <id>platinumhamburg</id>
+            <name>platinumhamburg</name>
+            <url>https://github.com/platinumhamburg</url>
+            <roles>
+                <role>maintainer</role>
+                <role>developer</role>
+            </roles>
+        </developer>
+        <developer>
             <name>Facebook</name>
             <email>help@facebook.com</email>
-            <timezone>America/New_York</timezone>
+            <organization>Facebook</organization>
+            <organizationUrl>https://www.facebook.com</organizationUrl>
             <roles>
-                <role>architect</role>
+                <role>original-author</role>
             </roles>
         </developer>
     </developers>
+
+    <issueManagement>
+        <system>GitHub Issues</system>
+        <url>https://github.com/platinumhamburg/frocksdb/issues</url>
+    </issueManagement>
 
     <mailingLists>
         <mailingList>
@@ -53,10 +68,14 @@
         </mailingList>
     </mailingLists>
 
+    <!-- Distribution management is handled by central-publishing-maven-plugin -->
+
     <properties>
-        <project.build.source>1.7</project.build.source>
-        <project.build.target>1.7</project.build.target>
+        <project.build.source>8</project.build.source>
+        <project.build.target>8</project.build.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.source>8</maven.compiler.source>
+        <maven.compiler.target>8</maven.compiler.target>
     </properties>
 
     <build>
@@ -64,11 +83,93 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.2</version>
+                <version>3.11.0</version>
                 <configuration>
                     <source>${project.build.source}</source>
                     <target>${project.build.target}</target>
                     <encoding>${project.build.sourceEncoding}</encoding>
+                    <!-- Removed <release>11</release> - not compatible with Java 8 -->
+                </configuration>
+            </plugin>
+            <!-- Ensure checksums are created for install phase -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-install-plugin</artifactId>
+                <version>3.1.1</version>
+                <configuration>
+                    <createChecksum>true</createChecksum>
+                </configuration>
+            </plugin>
+            <!-- Ensure checksums are created for deploy phase -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <version>3.1.1</version>
+                <configuration>
+                    <createChecksum>true</createChecksum>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>3.2.1</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.2.0</version>
+                <configuration>
+                    <quiet>true</quiet>
+                    <doclint>none</doclint>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>0.9.0</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <publishingServerId>central</publishingServerId>
+                    <autoPublish>true</autoPublish>
+                    <waitUntil>published</waitUntil>
+                    <!-- Generate all checksums (MD5 + SHA1) -->
+                    <checksums>all</checksums>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <gpgArguments>
+                        <arg>--pinentry-mode</arg>
+                        <arg>loopback</arg>
+                    </gpgArguments>
                 </configuration>
             </plugin>
             <plugin>
@@ -117,7 +218,7 @@
                             <defaults>
                                 <name>Xenu</name>
                             </defaults>
-                            <source>
+                            <source><![CDATA[
                                 String fileContents = new File(project.basedir.absolutePath + '/../include/rocksdb/version.h').getText('UTF-8')
                                 matcher = (fileContents =~ /(?s).*ROCKSDB_MAJOR ([0-9]+).*?/)
                                 String major_version = matcher.getAt(0).getAt(1)
@@ -126,11 +227,20 @@
                                 matcher = (fileContents =~ /(?s).*ROCKSDB_PATCH ([0-9]+).*?/)
                                 String patch_version = matcher.getAt(0).getAt(1)
                                 String version = String.format('%s.%s.%s', major_version, minor_version, patch_version)
-                                // Set version to be used in pom.properties
-                                project.version = version
-                                // Set version to be set as jar name
-                                project.build.finalName = project.artifactId + "-" + version
-                            </source>
+                                
+                                // Check if POM already has a version with suffix (e.g., 6.20.3-010402)
+                                String pomVersion = project.version
+                                if (pomVersion != null && pomVersion.startsWith(version + '-')) {
+                                    // POM has manual version with suffix, preserve it
+                                    log.info('Preserving POM version with suffix: ' + pomVersion)
+                                    project.build.finalName = project.artifactId + "-" + pomVersion
+                                } else {
+                                    // No suffix or auto-detected, use version from version.h
+                                    log.info('Using version from version.h: ' + version)
+                                    project.version = version
+                                    project.build.finalName = project.artifactId + "-" + version
+                                }
+                            ]]></source>
                         </configuration>
                     </execution>
                 </executions>

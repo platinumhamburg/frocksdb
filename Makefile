@@ -1987,7 +1987,7 @@ SHA256_CMD = sha256sum
 
 ZLIB_VER ?= 1.2.13
 ZLIB_SHA256 ?= b3a24de97a8fdbc835b9833169501030b8977031bcb54b3b3ac13740f846ab30
-ZLIB_DOWNLOAD_BASE ?= https://zlib.net/fossils
+ZLIB_DOWNLOAD_BASE ?= https://github.com/madler/zlib/releases/download/v$(ZLIB_VER)
 BZIP2_VER ?= 1.0.8
 BZIP2_SHA256 ?= ab5a03176ee106d3f0fa90e381da478ddae405918153cca248e682cd0c4a2269
 BZIP2_DOWNLOAD_BASE ?= https://sourceware.org/pub/bzip2

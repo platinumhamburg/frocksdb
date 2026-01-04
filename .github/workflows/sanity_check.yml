@@ -1,4 +1,4 @@
-name: Check buck targets and code format
+name: Code Format Check
 on: [push, pull_request]
 jobs:
   check:
@@ -29,13 +29,44 @@ jobs:
     - name: Install argparse
       run: pip install argparse
 
+    - name: Install clang-format
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang-format
+
     - name: Download clang-format-diff.py
-      uses: wei/wget@v1
-      with:
-        args: https://raw.githubusercontent.com/llvm/llvm-project/main/clang/tools/clang-format/clang-format-diff.py
+      run: |
+        curl --location https://raw.githubusercontent.com/llvm/llvm-project/main/clang/tools/clang-format/clang-format-diff.py -o clang-format-diff.py
+        chmod +x clang-format-diff.py
+
+    - name: Verify clang-format installation
+      run: |
+        clang-format --version
+        ls -la clang-format-diff.py
+        python3 clang-format-diff.py --help || true
 
     - name: Check format
-      run: VERBOSE_CHECK=1 make check-format
+      run: |
+        export CLANG_FORMAT_DIFF="python3 ${{ github.workspace }}/clang-format-diff.py"
+        echo "CLANG_FORMAT_DIFF=$CLANG_FORMAT_DIFF"
+        echo "Testing clang-format-diff.py execution..."
+        $CLANG_FORMAT_DIFF --help > /dev/null 2>&1 && echo "✓ Script works" || echo "✗ Script failed"
+        echo "Checking git remotes..."
+        git remote -v
+        echo "Finding upstream merge base..."
+        git fetch upstream || true
+        git merge-base upstream/master HEAD || echo "Warning: Could not find merge base with upstream/master"
+        echo "Checking for changed C++ files..."
+        git diff --name-only upstream/master...HEAD | grep -E '\.(cc|h)$' || echo "No C++ files changed"
+        echo "Running format check..."
+        VERBOSE_CHECK=1 make check-format 2>&1 | tee /tmp/format-check.log || {
+          EXIT_CODE=$?
+          echo "Format check failed with exit code $EXIT_CODE"
+          echo "=== Format check output ==="
+          cat /tmp/format-check.log
+          echo "=== End of format check output ==="
+          exit $EXIT_CODE
+        }
 
     - name: Compare buckify output
       run: make check-buck-targets

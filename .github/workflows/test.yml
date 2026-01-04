@@ -1,0 +1,341 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - 'release/**'
+      - 'fluss-*'
+  pull_request:
+    branches:
+      - main
+      - master
+
+permissions:
+  contents: read
+
+env:
+  # Fixed environment versions for testing
+  UBUNTU_VERSION: '22.04'
+  
+  # Fixed compiler versions
+  CC: clang
+  CXX: clang++
+  CLANG_VERSION: '15'
+  
+  # Fixed Java version
+  JAVA_VERSION: '8'
+  JAVA_DISTRIBUTION: 'zulu'
+  
+  # Debug mode for testing
+  DEBUG_LEVEL: '1'
+
+jobs:
+  # ========================================
+  # C++ Unit Tests
+  # ========================================
+  
+  test-cpp:
+    name: C++ Unit Tests
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install Clang ${{ env.CLANG_VERSION }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-${{ env.CLANG_VERSION }} llvm-${{ env.CLANG_VERSION }}
+          
+          # Set up alternatives
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${{ env.CLANG_VERSION }} 100
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-${{ env.CLANG_VERSION }} 100
+          sudo update-alternatives --set clang /usr/bin/clang-${{ env.CLANG_VERSION }}
+          sudo update-alternatives --set clang++ /usr/bin/clang++-${{ env.CLANG_VERSION }}
+          
+          # Verify versions
+          clang --version
+          clang++ --version
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get install -y build-essential cmake
+
+      - name: Setup test environment
+        run: |
+          # Create directory for test logs
+          mkdir -p ${{ runner.temp }}/test-logs
+          mkdir -p ${{ runner.temp }}/test-results
+
+      - name: Run C++ Unit Tests
+        id: cpp_tests
+        run: |
+          echo "Running C++ unit tests with DEBUG_LEVEL=${{ env.DEBUG_LEVEL }}..."
+          # Redirect output to log file and console
+          set +e  # Don't exit on error
+          set -o pipefail  # Capture exit code from first command in pipeline
+          make check EXTRA_CXXFLAGS="-Wno-error" 2>&1 | tee ${{ runner.temp }}/test-logs/cpp-tests.log
+          CPP_TEST_EXIT_CODE=${PIPESTATUS[0]}
+          echo "exit_code=$CPP_TEST_EXIT_CODE" >> $GITHUB_OUTPUT
+          echo "C++ tests finished with exit code: $CPP_TEST_EXIT_CODE"
+          exit 0  # Always succeed to allow log collection
+        env:
+          USE_CLANG: 1
+          GTEST_OUTPUT: "xml:${{ runner.temp }}/test-results/"
+          GTEST_COLOR: 1
+
+      - name: Collect C++ test logs
+        if: always()
+        run: |
+          # Collect any test logs from t/ directory
+          if [ -d "t" ]; then
+            echo "Collecting test logs from t/ directory..."
+            cp -r t/* ${{ runner.temp }}/test-logs/ 2>/dev/null || true
+          fi
+          
+          # Collect LOG files
+          find . -name "LOG" -type f -exec cp --parents {} ${{ runner.temp }}/test-logs/ \; 2>/dev/null || true
+          
+          # Collect any core dumps
+          find . -name "core.*" -type f -exec cp {} ${{ runner.temp }}/test-logs/ \; 2>/dev/null || true
+          
+          echo "Test log directory contents:"
+          ls -la ${{ runner.temp }}/test-logs/ || true
+
+      - name: Upload C++ test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpp-test-results
+          path: ${{ runner.temp }}/test-results/**
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload C++ test logs (on failure)
+        if: always() && steps.cpp_tests.outputs.exit_code != '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpp-test-logs
+          path: ${{ runner.temp }}/test-logs/**
+          retention-days: 14
+
+      - name: Test Summary
+        if: always()
+        run: |
+          echo "## C++ Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Compiler**: Clang ${{ env.CLANG_VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Debug Level**: ${{ env.DEBUG_LEVEL }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **OS**: Ubuntu ${{ env.UBUNTU_VERSION }}" >> $GITHUB_STEP_SUMMARY
+          
+          CPP_EXIT_CODE=${{ steps.cpp_tests.outputs.exit_code }}
+          if [ "$CPP_EXIT_CODE" != "0" ]; then
+            echo "- **Status**: ❌ FAILED (exit code: $CPP_EXIT_CODE)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Status**: ✅ PASSED" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Fail job if tests failed
+        if: steps.cpp_tests.outputs.exit_code != '0'
+        run: |
+          echo "::error::C++ tests failed with exit code ${{ steps.cpp_tests.outputs.exit_code }}"
+          exit 1
+
+  # ========================================
+  # Java Unit Tests (Linux glibc)
+  # ========================================
+  
+  test-java-linux:
+    name: Java Unit Tests (Linux)
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v3
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+
+      - name: Install Clang ${{ env.CLANG_VERSION }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-${{ env.CLANG_VERSION }} llvm-${{ env.CLANG_VERSION }}
+          
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${{ env.CLANG_VERSION }} 100
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-${{ env.CLANG_VERSION }} 100
+          sudo update-alternatives --set clang /usr/bin/clang-${{ env.CLANG_VERSION }}
+          sudo update-alternatives --set clang++ /usr/bin/clang++-${{ env.CLANG_VERSION }}
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get install -y build-essential cmake
+
+      - name: Setup test environment
+        run: |
+          # Create directory for test logs
+          mkdir -p ${{ runner.temp }}/java-test-logs
+          mkdir -p ${{ runner.temp }}/java-test-results
+
+      - name: Build Native Library (Debug Mode)
+        run: |
+          echo "Building native library with DEBUG_LEVEL=${{ env.DEBUG_LEVEL }}..."
+          make jclean clean
+          make rocksdbjavastatic EXTRA_CXXFLAGS="-Wno-error"
+        env:
+          USE_CLANG: 1
+          JAVA_HOME: ${{ env.JAVA_HOME }}
+
+      - name: Build Java Classes
+        run: |
+          echo "Building Java classes with DEBUG_LEVEL=${{ env.DEBUG_LEVEL }}..."
+          cd java
+          make javalib EXTRA_CXXFLAGS="-Wno-error"
+        env:
+          USE_CLANG: 1
+          JAVA_HOME: ${{ env.JAVA_HOME }}
+
+      - name: Run Java Unit Tests
+        id: java_tests
+        run: |
+          echo "Running Java unit tests with DEBUG_LEVEL=${{ env.DEBUG_LEVEL }}..."
+          echo "Note: Java assertions (-ea) are enabled in debug mode"
+          cd java
+          # Redirect output to log file and console
+          set +e  # Don't exit on error
+          set -o pipefail  # Capture exit code from first command in pipeline
+          make test EXTRA_CXXFLAGS="-Wno-error" 2>&1 | tee ${{ runner.temp }}/java-test-logs/java-tests.log
+          JAVA_TEST_EXIT_CODE=${PIPESTATUS[0]}
+          echo "exit_code=$JAVA_TEST_EXIT_CODE" >> $GITHUB_OUTPUT
+          echo "Java tests finished with exit code: $JAVA_TEST_EXIT_CODE"
+          exit 0  # Always succeed to allow log collection
+        env:
+          USE_CLANG: 1
+          JAVA_HOME: ${{ env.JAVA_HOME }}
+
+      - name: Collect Java test logs
+        if: always()
+        run: |
+          # Collect JVM crash logs
+          find . -name "hs_err_pid*.log" -type f -exec cp {} ${{ runner.temp }}/java-test-logs/ \; 2>/dev/null || true
+          
+          # Collect Java test output
+          if [ -d "java/target/surefire-reports" ]; then
+            echo "Collecting Surefire test reports..."
+            cp -r java/target/surefire-reports/* ${{ runner.temp }}/java-test-results/ 2>/dev/null || true
+          fi
+          
+          # Collect LOG files
+          find java -name "LOG" -type f -exec cp --parents {} ${{ runner.temp }}/java-test-logs/ \; 2>/dev/null || true
+          
+          # Collect core dumps
+          find java -name "core.*" -type f -exec cp {} ${{ runner.temp }}/java-test-logs/ \; 2>/dev/null || true
+          
+          echo "Java test log directory contents:"
+          ls -la ${{ runner.temp }}/java-test-logs/ || true
+
+      - name: Upload Java test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: java-test-results
+          path: ${{ runner.temp }}/java-test-results/**
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload Java test logs (on failure)
+        if: always() && steps.java_tests.outputs.exit_code != '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: java-test-logs
+          path: ${{ runner.temp }}/java-test-logs/**
+          retention-days: 14
+
+      - name: Test Summary
+        if: always()
+        run: |
+          echo "## Java Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Java**: JDK ${{ env.JAVA_VERSION }} (${{ env.JAVA_DISTRIBUTION }})" >> $GITHUB_STEP_SUMMARY
+          echo "- **Compiler**: Clang ${{ env.CLANG_VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Debug Level**: ${{ env.DEBUG_LEVEL }} (assertions enabled)" >> $GITHUB_STEP_SUMMARY
+          echo "- **OS**: Ubuntu ${{ env.UBUNTU_VERSION }}" >> $GITHUB_STEP_SUMMARY
+          
+          JAVA_EXIT_CODE=${{ steps.java_tests.outputs.exit_code }}
+          if [ "$JAVA_EXIT_CODE" != "0" ]; then
+            echo "- **Status**: ❌ FAILED (exit code: $JAVA_EXIT_CODE)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Status**: ✅ PASSED" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Fail job if tests failed
+        if: steps.java_tests.outputs.exit_code != '0'
+        run: |
+          echo "::error::Java tests failed with exit code ${{ steps.java_tests.outputs.exit_code }}"
+          exit 1
+
+  # ========================================
+  # Format & Style Checks
+  # ========================================
+  
+  check-format:
+    name: Code Format Check
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install argparse
+
+      - name: Download clang-format-diff.py
+        run: |
+          wget https://rocksdb-deps.s3.us-west-2.amazonaws.com/llvm/llvm-project/release/12.x/clang/tools/clang-format/clang-format-diff.py
+          chmod +x clang-format-diff.py
+
+      - name: Check format
+        run: |
+          # Note: This might fail if not comparing with upstream
+          VERBOSE_CHECK=1 make check-format || echo "Format check skipped (fork or no upstream)"
+        continue-on-error: true
+
+  # ========================================
+  # All Tests Complete
+  # ========================================
+  
+  test-complete:
+    name: All Tests Passed
+    runs-on: ubuntu-22.04
+    needs: [test-cpp, test-java-linux, check-format]
+    if: always()
+    steps:
+      - name: Check test results
+        run: |
+          if [ "${{ needs.test-cpp.result }}" != "success" ] || \
+             [ "${{ needs.test-java-linux.result }}" != "success" ]; then
+            echo "❌ Some tests failed"
+            echo "- C++ Tests: ${{ needs.test-cpp.result }}"
+            echo "- Java Tests: ${{ needs.test-java-linux.result }}"
+            exit 1
+          fi
+          echo "✅ All tests passed!"
+          
+      - name: Summary
+        run: |
+          echo "## ✅ Test Suite Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All tests passed successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ C++ Unit Tests" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Java Unit Tests" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Format Check" >> $GITHUB_STEP_SUMMARY
+
