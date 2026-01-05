@@ -27,6 +27,7 @@
 #include "rocksdb/convenience.h"
 #include "rocksdb/db.h"
 #include "rocksdb/filter_policy.h"
+#include "rocksdb/perf_level.h"
 #include "rocksdb/rate_limiter.h"
 #include "rocksdb/status.h"
 #include "rocksdb/table.h"
@@ -8471,6 +8472,80 @@ class FileOperationInfoJni : public JavaClass {
   static jmethodID getConstructorMethodId(JNIEnv* env, jclass clazz) {
     return env->GetMethodID(clazz, "<init>",
                             "(Ljava/lang/String;JJJJLorg/rocksdb/Status;)V");
+  }
+};
+
+// The portal class for org.rocksdb.PerfLevel
+class PerfLevelJni {
+ public:
+  // Returns the equivalent org.rocksdb.PerfLevel for the provided
+  // C++ ROCKSDB_NAMESPACE::PerfLevel enum
+  static jobject toJavaPerfLevel(JNIEnv* env,
+                                 const ROCKSDB_NAMESPACE::PerfLevel& pl_value) {
+    jclass jclazz = getJClass(env);
+    if (jclazz == nullptr) {
+      // exception occurred accessing class
+      return nullptr;
+    }
+
+    jmethodID mid = getGetPerfLevelMethod(env, jclazz);
+    if (mid == nullptr) {
+      // exception occurred accessing method
+      return nullptr;
+    }
+
+    const jbyte jperf_level = static_cast<jbyte>(pl_value);
+    jobject jperf_level_obj =
+        env->CallStaticObjectMethod(jclazz, mid, jperf_level);
+    if (env->ExceptionCheck()) {
+      // exception occurred
+      return nullptr;
+    }
+
+    return jperf_level_obj;
+  }
+
+  // Returns the equivalent C++ ROCKSDB_NAMESPACE::PerfLevel enum for the
+  // provided Java org.rocksdb.PerfLevel
+  static jbyte toCppPerfLevel(JNIEnv* env, jobject jperf_level) {
+    jclass jclazz = getJClass(env);
+    if (jclazz == nullptr) {
+      // exception occurred accessing class
+      return 0;
+    }
+
+    jmethodID mid = getGetValueMethod(env, jclazz);
+    if (mid == nullptr) {
+      // exception occurred accessing method
+      return 0;
+    }
+
+    const jbyte jperf_level_value =
+        env->CallByteMethod(jperf_level, mid);
+    if (env->ExceptionCheck()) {
+      // exception occurred
+      return 0;
+    }
+
+    return jperf_level_value;
+  }
+
+ private:
+  static jclass getJClass(JNIEnv* env) {
+    return JavaClass::getJClass(env, "org/rocksdb/PerfLevel");
+  }
+
+  static jmethodID getGetPerfLevelMethod(JNIEnv* env, jclass jclazz) {
+    static jmethodID mid = env->GetStaticMethodID(
+        jclazz, "getPerfLevel", "(B)Lorg/rocksdb/PerfLevel;");
+    assert(mid != nullptr);
+    return mid;
+  }
+
+  static jmethodID getGetValueMethod(JNIEnv* env, jclass jclazz) {
+    static jmethodID mid = env->GetMethodID(jclazz, "getValue", "()B");
+    assert(mid != nullptr);
+    return mid;
   }
 };
 }  // namespace ROCKSDB_NAMESPACE

@@ -402,7 +402,7 @@ Status Replayer::Replay() {
   WriteOptions woptions;
   ReadOptions roptions;
   Trace trace;
-  uint64_t ops = 0;
+  uint64_t ops __attribute__((unused)) = 0;
   Iterator* single_iter = nullptr;
   while (s.ok()) {
     trace.reset();
@@ -541,7 +541,7 @@ Status Replayer::MultiThreadReplay(uint32_t threads_num) {
       std::chrono::system_clock::now();
   WriteOptions woptions;
   ReadOptions roptions;
-  uint64_t ops = 0;
+  uint64_t ops __attribute__((unused)) = 0;
   while (s.ok()) {
     std::unique_ptr<ReplayerWorkerArg> ra(new ReplayerWorkerArg);
     ra->db = db_;

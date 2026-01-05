@@ -4755,6 +4755,20 @@ public class RocksDB extends RocksObject {
 
   private native static int version();
 
+  /**
+   * Set the perf stats level for current thread.
+   *
+   * @param perfLevel the perf stats level to set
+   */
+  public static native void setPerfLevel(final PerfLevel perfLevel);
+
+  /**
+   * Get current perf stats level for current thread.
+   *
+   * @return the current perf stats level
+   */
+  public static native PerfLevel getPerfLevel();
+
   protected DBOptionsInterface options_;
   private static Version version;
 

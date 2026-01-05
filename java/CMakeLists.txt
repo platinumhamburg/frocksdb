@@ -48,6 +48,8 @@ set(JNI_NATIVE_SOURCES
         rocksjni/optimistic_transaction_options.cc
         rocksjni/options.cc
         rocksjni/options_util.cc
+        rocksjni/perf_contextjni.cc
+        rocksjni/iostats_contextjni.cc
         rocksjni/persistent_cache.cc
         rocksjni/ratelimiterjni.cc
         rocksjni/remove_emptyvalue_compactionfilterjni.cc
@@ -192,6 +194,9 @@ set(JAVA_MAIN_CLASSES
   src/main/java/org/rocksdb/OptimisticTransactionOptions.java
   src/main/java/org/rocksdb/Options.java
   src/main/java/org/rocksdb/OptionsUtil.java
+  src/main/java/org/rocksdb/PerfContext.java
+  src/main/java/org/rocksdb/PerfLevel.java
+  src/main/java/org/rocksdb/IOStatsContext.java
   src/main/java/org/rocksdb/PersistentCache.java
   src/main/java/org/rocksdb/PlainTableConfig.java
   src/main/java/org/rocksdb/Priority.java
@@ -279,7 +284,9 @@ set(JAVA_MAIN_CLASSES
 set(JAVA_TEST_CLASSES
   src/test/java/org/rocksdb/BackupEngineTest.java
   src/test/java/org/rocksdb/IngestExternalFileOptionsTest.java
+  src/test/java/org/rocksdb/IOStatsContextTest.java
   src/test/java/org/rocksdb/NativeComparatorWrapperTest.java
+  src/test/java/org/rocksdb/PerfContextTest.java
   src/test/java/org/rocksdb/PlatformRandomHelper.java
   src/test/java/org/rocksdb/RocksDBExceptionTest.java
   src/test/java/org/rocksdb/RocksNativeLibraryResource.java
@@ -463,6 +470,9 @@ if(${CMAKE_VERSION} VERSION_LESS "3.11.4" OR (${Java_VERSION_MINOR} STREQUAL "7"
           org.rocksdb.OptimisticTransactionOptions
           org.rocksdb.Options
           org.rocksdb.OptionsUtil
+          org.rocksdb.PerfContext
+          org.rocksdb.PerfLevel
+          org.rocksdb.IOStatsContext
           org.rocksdb.PersistentCache
           org.rocksdb.PlainTableConfig
           org.rocksdb.RateLimiter

@@ -39,6 +39,7 @@ NATIVE_JAVA_CLASSES = \
 	org.rocksdb.HashLinkedListMemTableConfig\
 	org.rocksdb.HashSkipListMemTableConfig\
 	org.rocksdb.HdfsEnv\
+	org.rocksdb.IOStatsContext\
 	org.rocksdb.ConcurrentTaskLimiter\
 	org.rocksdb.ConcurrentTaskLimiterImpl\
 	org.rocksdb.Logger\
@@ -51,6 +52,7 @@ NATIVE_JAVA_CLASSES = \
 	org.rocksdb.OptimisticTransactionOptions\
 	org.rocksdb.Options\
 	org.rocksdb.OptionsUtil\
+	org.rocksdb.PerfContext\
 	org.rocksdb.PersistentCache\
 	org.rocksdb.PlainTableConfig\
 	org.rocksdb.RateLimiter\

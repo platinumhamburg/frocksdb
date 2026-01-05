@@ -22,6 +22,8 @@
 #include "rocksdb/convenience.h"
 #include "rocksdb/db.h"
 #include "rocksdb/options.h"
+#include "rocksdb/perf_context.h"
+#include "rocksdb/perf_level.h"
 #include "rocksdb/types.h"
 #include "rocksdb/version.h"
 #include "rocksjni/portal.h"
@@ -3514,4 +3516,28 @@ jint Java_org_rocksdb_RocksDB_version(JNIEnv*, jclass) {
   encodedVersion |= (ROCKSDB_MINOR & 0xff) << 8;
   encodedVersion |= (ROCKSDB_PATCH & 0xff);
   return static_cast<jint>(encodedVersion);
+}
+
+/*
+ * Class:     org_rocksdb_RocksDB
+ * Method:    setPerfLevel
+ * Signature: (Lorg/rocksdb/PerfLevel;)V
+ */
+void Java_org_rocksdb_RocksDB_setPerfLevel(JNIEnv* env, jclass,
+                                            jobject jperfLevel) {
+  const jbyte perf_level_value =
+      ROCKSDB_NAMESPACE::PerfLevelJni::toCppPerfLevel(env, jperfLevel);
+  ROCKSDB_NAMESPACE::SetPerfLevel(
+      static_cast<ROCKSDB_NAMESPACE::PerfLevel>(perf_level_value));
+}
+
+/*
+ * Class:     org_rocksdb_RocksDB
+ * Method:    getPerfLevel
+ * Signature: ()Lorg/rocksdb/PerfLevel;
+ */
+jobject Java_org_rocksdb_RocksDB_getPerfLevel(JNIEnv* env, jclass) {
+  const ROCKSDB_NAMESPACE::PerfLevel perf_level =
+      ROCKSDB_NAMESPACE::GetPerfLevel();
+  return ROCKSDB_NAMESPACE::PerfLevelJni::toJavaPerfLevel(env, perf_level);
 }
